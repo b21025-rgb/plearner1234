@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지능형 학업 성향 매칭 시험 플래너</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #2D3142;
+            color: #F4F5F6;
+        }
+        .bg-charcoal { background-color: #2D3142; }
+        .bg-dark-gray { background-color: #1F222E; }
+        .bg-light-gray { background-color: #4F5D75; }
+        .bg-deep-green { background-color: #024428; }
+        .text-deep-green { color: #024428; }
+        .border-deep-green { border-color: #024428; }
+        
+        /* 톤 다운된 무지개 색상 (과목용) */
+        .sub-red { background-color: #E07A5F !important; color: white; }
+        .sub-orange { background-color: #F4A261 !important; color: white; }
+        .sub-yellow { background-color: #E9C46A !important; color: #2D3142; }
+        .sub-green { background-color: #2A9D8F !important; color: white; }
+        .sub-blue { background-color: #457B9D !important; color: white; }
+        .sub-indigo { background-color: #1D3557 !important; color: white; }
+        .sub-purple { background-color: #8338EC !important; color: white; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body class="bg-charcoal min-h-screen">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-6">
+        
+        <div id="auth-view" class="max-w-md mx-auto mt-20 bg-dark-gray p-8 rounded-2xl shadow-2xl border border-gray-700">
+            <h2 class="text-2xl font-bold text-center mb-2 text-white">지능형 시험 플래너</h2>
+            <p class="text-xs text-center text-gray-400 mb-6">최초 접속 시 입력하신 정보로 가상/Firebase 회원가입 및 로그인이 진행됩니다.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">이메일 아이디</label>
+                    <input type="email" id="username" class="w-full bg-charcoal border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#024428]" placeholder="example@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">비밀번호</label>
+                    <input type="password" id="password" class="w-full bg-charcoal border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#024428]" placeholder="6자리 이상 입력">
+                </div>
+                <button onclick="handleGatewayLogin()" class="w-full bg-[#024428] hover:opacity-90 text-white font-semibold py-3 rounded-xl transition mt-2 cursor-pointer">접속하기 / 회원가입</button>
+            </div>
+        </div>
+
+        <div id="survey-view" class="hidden max-w-2xl mx-auto bg-dark-gray p-8 rounded-2xl shadow-2xl border border-gray-700">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-white">학습 성향 및 행동 유형 진단</h2>
+                <span id="progress-text" class="text-sm text-white font-semibold bg-[#024428] px-2.5 py-0.5 rounded">1 / 15</span>
+            </div>
+            <div class="w-full bg-gray-700 h-2 rounded-full mb-8 overflow-hidden">
+                <div id="progress-bar" class="bg-[#024428] h-full transition-all duration-300" style="width: 6.66%"></div>
+            </div>
+            <div id="question-container" class="min-h-[160px] flex flex-col justify-center mb-8">
+                <p id="question-text" class="text-lg md:text-xl font-medium text-gray-100 leading-relaxed"></p>
+            </div>
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="submitAnswer(5)" class="w-full bg-charcoal hover:bg-gray-700 text-left px-6 py-4 rounded-xl border border-gray-600 transition flex justify-between items-center group cursor-pointer"><span>매우 그렇다</span> <span class="text-white opacity-0 group-hover:opacity-100 transition">➔</span></button>
+                <button onclick="submitAnswer(4)" class="w-full bg-charcoal hover:bg-gray-700 text-left px-6 py-4 rounded-xl border border-gray-600 transition flex justify-between items-center group cursor-pointer"><span>그렇다</span> <span class="text-white opacity-0 group-hover:opacity-100 transition">➔</span></button>
+                <button onclick="submitAnswer(3)" class="w-full bg-charcoal hover:bg-gray-700 text-left px-6 py-4 rounded-xl border border-gray-600 transition flex justify-between items-center group cursor-pointer"><span>보통이다</span> <span class="text-white opacity-0 group-hover:opacity-100 transition">➔</span></button>
+                <button onclick="submitAnswer(2)" class="w-full bg-charcoal hover:bg-gray-700 text-left px-6 py-4 rounded-xl border border-gray-600 transition flex justify-between items-center group cursor-pointer"><span>아니다</span> <span class="text-white opacity-0 group-hover:opacity-100 transition">➔</span></button>
+                <button onclick="submitAnswer(1)" class="w-full bg-charcoal hover:bg-gray-700 text-left px-6 py-4 rounded-xl border border-gray-600 transition flex justify-between items-center group cursor-pointer"><span>매우 아니다</span> <span class="text-white opacity-0 group-hover:opacity-100 transition">➔</span></button>
+            </div>
+        </div>
+
+        <div id="planner-view" class="hidden space-y-6">
+            <div class="bg-dark-gray p-6 rounded-2xl border border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <span id="user-badge" class="bg-[#024428] text-white text-xs font-bold px-2.5 py-1 rounded-md">분석 중</span>
+                        <h1 class="text-xl md:text-2xl font-bold text-white"><span id="display-name" class="text-gray-300">학생</span>님의 플래너</h1>
+                    </div>
+                    <p id="analysis-desc" class="text-sm text-gray-400 mt-1">성향 및 주간 고정 루틴 데이터 결합형 인텔리전스 플래너가 기동 중입니다.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <button onclick="exportToPDF()" class="bg-[#024428] hover:opacity-90 text-white font-medium px-4 py-2.5 rounded-xl transition text-sm flex items-center gap-2 cursor-pointer">📥 PDF로 저장</button>
+                    <button onclick="handleGatewayLogout()" class="bg-gray-800 hover:bg-gray-900 text-gray-400 font-medium px-4 py-2.5 rounded-xl transition text-sm cursor-pointer">로그아웃</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                
+                <div class="space-y-6 lg:col-span-1">
+                    <div class="bg-dark-gray p-5 rounded-2xl border border-gray-700 space-y-4">
+                        <h3 class="text-md font-semibold text-white border-b border-gray-700 pb-2">⚙️ 기본 설정</h3>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">시험 기간 설정</label>
+                            <select id="exam-weeks" onchange="updateWeeksDropdown()" class="w-full bg-charcoal border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                                <option value="4">4주 전 대비 (일반 과목)</option>
+                                <option value="5" selected>5주 전 대비 (수학 집중)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">과목 우선순위 (Drag & Drop 순서변경)</label>
+                            <div id="subject-list" class="space-y-2 mt-2"></div>
+                            <div class="mt-3 flex gap-1">
+                                <input type="text" id="new-subject-name" placeholder="새 과목" class="w-full bg-charcoal border border-gray-600 rounded-lg px-2 py-1 text-xs text-white focus:outline-none">
+                                <select id="new-subject-color" class="bg-charcoal border border-gray-600 rounded-lg px-1 py-1 text-xs text-white">
+                                    <option value="sub-red">빨강</option>
+                                    <option value="sub-orange">주황</option>
+                                    <option value="sub-yellow">노랑</option>
+                                    <option value="sub-green">초록</option>
+                                    <option value="sub-blue">파랑</option>
+                                    <option value="sub-indigo">남색</option>
+                                    <option value="sub-purple">보라</option>
+                                </select>
+                                <button onclick="addNewSubject()" class="bg-[#024428] text-white px-2 py-1 rounded-lg text-xs font-bold cursor-pointer">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-dark-gray p-5 rounded-2xl border border-gray-700 space-y-4">
+                        <h3 class="text-md font-semibold text-white border-b border-gray-700 pb-2">🔄 매주 반복되는 과제 설정</h3>
+                        <p class="text-[11px] text-gray-400 leading-tight">학원 숙제, 정기 복습 등 매주 지정된 요일에 자동으로 가용 시간에서 차감 및 배치되는 고정 과제 관리 창입니다.</p>
+                        
+                        <div class="space-y-2 bg-charcoal p-3 rounded-xl border border-gray-700">
+                            <div>
+                                <label class="block text-[11px] text-gray-400 mb-0.5">과제 명칭</label>
+                                <input type="text" id="repeat-task-name" placeholder="예: 수학 학원 교재 숙제" class="w-full bg-dark-gray border border-gray-600 rounded-lg px-2 py-1 text-xs text-white focus:outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <div>
+                                    <label class="block text-[11px] text-gray-400 mb-0.5">과목 연동</label>
+                                    <select id="repeat-task-subject" class="w-full bg-dark-gray border border-gray-600 rounded-lg p-1 text-xs text-white"></select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-gray-400 mb-0.5">소요 시간</label>
+                                    <select id="repeat-task-hours" class="w-full bg-dark-gray border border-gray-600 rounded-lg p-1 text-xs text-white">
+                                        <option value="0.5">30분</option>
+                                        <option value="1.0">1시간</option>
+                                        <option value="1.5">1.5시간</option>
+                                        <option value="2.0" selected>2시간</option>
+                                        <option value="2.5">2.5시간</option>
+                                        <option value="3.0">3시간</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-gray-400 mb-0.5">수행 요일</label>
+                                <select id="repeat-task-day" class="w-full bg-dark-gray border border-gray-600 rounded-lg p-1 text-xs text-white">
+                                    <option value="mon">월요일</option>
+                                    <option value="tue">화요일</option>
+                                    <option value="wed">수요일</option>
+                                    <option value="thu">목요일</option>
+                                    <option value="fri">금요일</option>
+                                    <option value="sat">토요일</option>
+                                    <option value="sun">일요일</option>
+                                </select>
+                            </div>
+                            <button onclick="addRepeatingTask()" class="w-full bg-[#024428] hover:opacity-90 text-white font-bold py-1 rounded-lg text-xs transition cursor-pointer">+ 고정 루틴 등록</button>
+                        </div>
+
+                        <div id="repeating-tasks-list" class="space-y-1.5 max-h-[160px] overflow-y-auto pt-1"></div>
+                    </div>
+
+                    <div class="bg-dark-gray p-5 rounded-2xl border border-gray-700">
+                        <h3 class="text-md font-semibold text-white border-b border-gray-700 pb-2">⏰ 요일별 순수 자습 시간 (h)</h3>
+                        <div class="grid grid-cols-2 gap-2 mt-3">
+                            <div><label class="text-xs text-gray-400">월</label><input type="number" id="time-mon" value="4" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">화</label><input type="number" id="time-tue" value="4" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">수</label><input type="number" id="time-wed" value="4" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">목</label><input type="number" id="time-thu" value="4" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">금</label><input type="number" id="time-fri" value="3" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">토</label><input type="number" id="time-sat" value="8" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                            <div><label class="text-xs text-gray-400">일</label><input type="number" id="time-sun" value="6" onchange="saveTimeBudget()" class="w-full bg-charcoal border border-gray-600 rounded-lg p-1 text-center text-xs text-white"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="bg-dark-gray p-4 rounded-2xl border border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm text-gray-400">현재 주차 선택:</label>
+                            <select id="current-week-select" onchange="renderWeekSchedule()" class="bg-charcoal border border-gray-600 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none"></select>
+                        </div>
+                        <button onclick="generateAIRecommendation()" class="w-full sm:w-auto bg-[#024428] hover:opacity-95 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow cursor-pointer">🤖 성향 맞춤 스케줄 일괄 자동 빌드</button>
+                    </div>
+
+                    <div class="bg-dark-gray p-5 rounded-2xl border border-gray-700 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">📌 일주일 과제 줄글 입력창 (여기에 입력 시 스케줄러 자동 배정)</h3>
+                            <span class="text-[10px] text-gray-400">포맷: 과목-할일(시간)</span>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <textarea id="weekly-todo-textarea" rows="4" placeholder="여기에 줄글로 붙여넣으세요. 입력된 과제는 자습 시간을 고려하여 자동으로 플래너에 배정됩니다!&#10;예시:&#10;수학-쎈C단계풀기(3)&#10;영어-EBS지문암기(1.5)" class="w-full bg-charcoal border border-gray-600 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-mono leading-relaxed"></textarea>
+                            <button onclick="addWeeklyTodoBulkLines()" class="w-full bg-[#024428] hover:opacity-90 text-white font-semibold rounded-xl text-xs py-2.5 transition cursor-pointer">📝 주간 미션 리스트 추가 및 플래너 자동 시간 배정</button>
+                        </div>
+                        <div id="weekly-todo-list" class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1"></div>
+                    </div>
+
+                    <div id="pdf-canvas" class="bg-dark-gray p-6 rounded-2xl border border-gray-700 space-y-6">
+                        <div class="border-b border-gray-700 pb-3 flex justify-between items-center">
+                            <h2 class="text-lg font-bold text-white"><span id="canvas-week-title" class="text-white bg-[#024428] px-2.5 py-0.5 rounded mr-1">D-5주차</span> 학습 플랜</h2>
+                            <span id="canvas-strategy" class="text-xs text-gray-400 bg-charcoal px-3 py-1 rounded-full border border-gray-600">지능형 밸런서 가동 중</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
+                            <div id="day-mon" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-white">월요일</span><span id="budget-mon" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/4h</span></div>
+                                <div id="tasks-mon" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'mon')"></div>
+                                <button onclick="openAddTaskModal('mon')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-tue" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-white">화요일</span><span id="budget-tue" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/4h</span></div>
+                                <div id="tasks-tue" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'tue')"></div>
+                                <button onclick="openAddTaskModal('tue')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-wed" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-white">수요일</span><span id="budget-wed" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/4h</span></div>
+                                <div id="tasks-wed" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'wed')"></div>
+                                <button onclick="openAddTaskModal('wed')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-thu" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-white">목요일</span><span id="budget-thu" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/4h</span></div>
+                                <div id="tasks-thu" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'thu')"></div>
+                                <button onclick="openAddTaskModal('thu')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-fri" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-white">금요일</span><span id="budget-fri" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/3h</span></div>
+                                <div id="tasks-fri" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'fri')"></div>
+                                <button onclick="openAddTaskModal('fri')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-sat" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-[#E9C46A]">토요일</span><span id="budget-sat" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/8h</span></div>
+                                <div id="tasks-sat" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'sat')"></div>
+                                <button onclick="openAddTaskModal('sat')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                            <div id="day-sun" class="bg-charcoal p-3 rounded-xl border border-gray-700 min-h-[340px] flex flex-col">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1.5 mb-2"><span class="font-bold text-sm text-red-400">일요일</span><span id="budget-sun" class="text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">0/6h</span></div>
+                                <div id="tasks-sun" class="space-y-1.5 flex-1" ondragover="allowDrop(event)" ondrop="drop(event, 'sun')"></div>
+                                <button onclick="openAddTaskModal('sun')" class="w-full mt-2 border border-dashed border-gray-600 hover:border-[#024428] text-gray-500 hover:text-white text-xs py-1 rounded-lg transition cursor-pointer">+</button>
+                            </div>
+                        </div>
+
+                        <div id="historical-prescription" class="bg-charcoal border-l-4 border-[#024428] p-4 rounded-r-xl">
+                            <h4 class="text-sm font-bold text-gray-200 flex items-center gap-2">💡 마스터의 주간 공부 전략 가이드라인</h4>
+                            <p id="prescription-text" class="text-xs text-gray-300 mt-1 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="giant-popup" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-gray border-2 border-[#024428] max-w-xl w-full p-8 rounded-3xl text-center shadow-2xl space-y-6">
+            <div class="w-20 h-20 bg-[#024428]/20 border border-[#024428]/40 rounded-full flex items-center justify-center mx-auto">
+                <span class="text-3xl">🛡️</span>
+            </div>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight">지능형 성향 모드 전면 가동</h2>
+            <div class="py-2">
+                <p id="popup-master-title" class="text-2xl font-bold text-gray-100 mb-2"></p>
+                <p class="text-sm text-gray-400">개인화 행동 패턴 데이터 결합 기반 연동 시스템이 백엔드 바인딩되었습니다.</p>
+            </div>
+            <div class="bg-charcoal p-4 rounded-xl border border-gray-700 text-left">
+                <p id="popup-master-desc" class="text-xs text-gray-300 leading-relaxed"></p>
+            </div>
+            <div class="text-xs text-gray-400 font-medium tracking-widest animate-pulse">SYSTEM INITIALIZATION SUCCESSFUL</div>
+            <button onclick="closeGiantPopup()" class="w-full bg-[#024428] hover:opacity-90 text-white font-bold py-3.5 rounded-xl transition cursor-pointer">개인화 마스터 플래너 진입하기</button>
+        </div>
+    </div>
+
+    <div id="overload-popup" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-gray border border-red-500 max-w-sm w-full p-6 rounded-2xl text-center shadow-2xl space-y-4">
+            <div class="text-4xl">⚠️</div>
+            <h3 class="text-xl font-extrabold text-red-400 tracking-wider">과해과해!! 🚨</h3>
+            <p class="text-sm text-gray-300 leading-relaxed">선택하신 요일의 남은 자습 가용 시간을 초과하는 스케줄 분량입니다.</p>
+            <div class="flex gap-2 pt-2">
+                <button onclick="confirmOverload(true)" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm transition cursor-pointer">예 (강제 추가)</button>
+                <button onclick="confirmOverload(false)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2.5 rounded-xl text-sm transition cursor-pointer">아니오 (다른 날 선택)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="task-modal" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-dark-gray border border-gray-700 max-w-md w-full p-6 rounded-2xl space-y-4">
+            <h3 id="modal-title" class="text-lg font-bold text-white">할 일 추가/수정</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">연동 과목</label>
+                    <select id="modal-subject" class="w-full bg-charcoal border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">할 일 명칭</label>
+                    <input type="text" id="modal-task-name" class="w-full bg-charcoal border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">⏱️ 예상 소요 시간</label>
+                    <select id="modal-task-hours" class="w-full bg-charcoal border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                        <option value="0.5">30분 (0.5h)</option>
+                        <option value="1.0">1시간 (1.0h)</option>
+                        <option value="1.5">1시간 30분 (1.5h)</option>
+                        <option value="2.0" selected>2시간 (2.0h)</option>
+                        <option value="2.5">2시간 30분 (2.5h)</option>
+                        <option value="3.0">3시간 (3.0h)</option>
+                        <option value="4.0">4시간 (4.0h)</option>
+                    </select>
+                </div>
+                <div class="bg-charcoal p-3 rounded-xl border border-gray-700 space-y-2">
+                    <label class="flex items-center gap-2 text-xs text-gray-300">
+                        <input type="checkbox" id="modal-review-trigger" class="rounded border-gray-600 bg-charcoal text-[#024428] focus:ring-0">
+                        <span>최적 복습 주기 자동 세팅 활성화 (7일 뒤)</span>
+                    </label>
+                    <p class="text-[11px] text-gray-500 pl-5">활성화 시, 암기과목 주기 시스템에 따라 다음 주 동일 요일에 자동 복습 데이터가 누적 이월 연동됩니다.</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeTaskModal()" class="bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-xl text-xs transition cursor-pointer">취소</button>
+                <button onclick="saveTaskData()" class="bg-[#024428] hover:opacity-90 text-white font-medium px-4 py-2 rounded-xl text-xs transition cursor-pointer">저장 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="split-modal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-dark-gray border border-gray-600 max-w-lg w-full p-6 rounded-2xl shadow-2xl space-y-4">
+            <div>
+                <div class="flex justify-between items-start">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">✂️ 과업 시간 분할 및 요일별 배정</h3>
+                    <button onclick="closeSplitModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+                </div>
+                <p id="split-target-info" class="text-xs text-emerald-400 mt-1 font-mono font-bold"></p>
+            </div>
+            
+            <div class="bg-charcoal p-4 rounded-xl border border-gray-700 space-y-3">
+                <div class="flex justify-between text-xs font-semibold border-b border-gray-700 pb-2">
+                    <span class="text-gray-400">총 할당 대상 시간: <span id="split-total-h" class="text-white">0</span>h</span>
+                    <span class="text-gray-400">분할 후 남은 시간: <span id="split-remain-h" class="text-red-400 font-bold">0</span>h</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                    <input type="text" id="split-task-name" placeholder="세부 분할 명칭 (예: 1~3단원)" class="sm:col-span-2 bg-dark-gray border border-gray-600 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none">
+                    <select id="split-task-hours" class="bg-dark-gray border border-gray-600 rounded-lg p-1 text-xs text-white">
+                        <option value="0.5">30분 (0.5h)</option>
+                        <option value="1.0" selected>1시간 (1.0h)</option>
+                        <option value="1.5">1.5시간 (1.5h)</option>
+                        <option value="2.0">2시간 (2.0h)</option>
+                        <option value="2.5">2.5시간 (2.5h)</option>
+                        <option value="3.0">3시간 (3.0h)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] text-gray-400 mb-1">배정할 플래너 요일</label>
+                    <select id="split-task-day" class="w-full bg-dark-gray border border-gray-600 rounded-lg p-1.5 text-xs text-white">
+                        <option value="mon">월요일 타임라인</option>
+                        <option value="tue">화요일 타임라인</option>
+                        <option value="wed">수요일 타임라인</option>
+                        <option value="thu">목요일 타임라인</option>
+                        <option value="fri">금요일 타임라인</option>
+                        <option value="sat">토요일 타임라인</option>
+                        <option value="sun">일요일 타임라인</option>
+                    </select>
+                </div>
+                <button onclick="executeSplitPiece()" class="w-full bg-[#024428] hover:opacity-90 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">⚡ 이 요일에 쪼개서 넣기</button>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-bold text-gray-400">현재 플래너에 분할 주입 완료된 목록</label>
+                <div id="split-pieces-list" class="space-y-1 max-h-[120px] overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyFakeKey_YOUR_ACTUAL_FIREBASE_API_KEY",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id"
+        };
+
+        let useFirebaseServer = false;
+        let auth = null;
+
+        if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("FakeKey")) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                useFirebaseServer = true;
+                console.log("Firebase 인증 인프라가 실시간 바인딩되었습니다.");
+            } catch (e) {
+                console.warn("Firebase 커넥션 에러, 로컬 인증 가동", e);
+            }
+        }
+
+        window.handleGatewayLogin = async function() {
+            const email = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if(!email || !password) return alert('이메일과 비밀번호를 모두 입력해주세요.');
+            if(password.length < 6) return alert('비밀번호는 최소 6자리 이상이어야 합니다.');
+
+            if (useFirebaseServer && auth) {
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                        try {
+                            await createUserWithEmailAndPassword(auth, email, password);
+                            alert("Firebase 인증 계정 자동 등록 성공!");
+                        } catch (signUpError) {
+                            alert("회원가입 실패: " + signUpError.message);
+                        }
+                    } else {
+                        alert("인증 실패: " + error.message);
+                    }
+                }
+            } else {
+                const userKey = `planner_local_user_${email}`;
+                const existUser = localStorage.getItem(userKey);
+                if (existUser && existUser !== password) return alert('비밀번호가 다릅니다.');
+                if (!existUser) localStorage.setItem(userKey, password);
+
+                localStorage.setItem('planner_current_user', email);
+                window.loadUserData(email);
+            }
+        };
+
+        window.handleGatewayLogout = function() {
+            if (useFirebaseServer && auth) {
+                signOut(auth);
+            } else {
+                localStorage.removeItem('planner_current_user');
+                window.state.currentUser = null;
+                window.showView('auth-view');
+            }
+        };
+
+        if (useFirebaseServer && auth) {
+            onAuthStateChanged(auth, (user) => {
+                if (user) window.loadUserData(user.email);
+                else { window.state.currentUser = null; window.showView('auth-view'); }
+            });
+        } else {
+            window.addEventListener('DOMContentLoaded', () => {
+                const saved = localStorage.getItem('planner_current_user');
+                if (saved) window.loadUserData(saved);
+                else window.showView('auth-view');
+            });
+        }
+    </script>
+
+    <script>
+        const surveyQuestions = [
+            { id: 1, text: "새로운 내용을 공부할 때 세부 내용을 외우기보다는 책 전체 목차나 요약본을 먼저 보며 큰 틀을 잡는 게 편하다.", axis: "사고", scoreMap: { plus: "총체", minus: "분석" } },
+            { id: 2, text: "남들이 좋다고 추천하는 문제집이나 공부법보다 내가 직접 확인하고 납득할 수 있는 방식을 더 신뢰한다.", axis: "성격", scoreMap: { plus: "자기", minus: "사회" } },
+            { id: 3, text: "독서실 책상 정리 상태나 그날 나의 기분, 컨디션에 따라 공부에 집중할 수 있는 편차가 매우 큰 편이다.", axis: "조절", scoreMap: { plus: "감성", minus: "이성" } },
+            { id: 4, text: "시험 기간 대비 계획표를 구성할 때 세밀하게 리스트를 채우기보다 핵심 과목 위주로 덩어리 지어 구조를 파악하는 게 수월하다.", axis: "사고", scoreMap: { plus: "총체", minus: "분석" } },
+            { id: 5, text: "나만의 확실한 루틴과 공부 방식이 확고하여 주변 친구들의 진도나 평가에 크게 흔들리지 않는 편이다.", axis: "성격", scoreMap: { plus: "자기", minus: "사회" } },
+            { id: 6, text: "명확하고 체계적인 규칙이나 보상이 주어지지 않으면, 공부 중간에 주의력이 쉽게 분산되곤 한다.", axis: "조절", scoreMap: { plus: "감성", minus: "이성" } },
+            { id: 7, text: "단편적인 지식의 암기보다 과목과 맥락이 어떻게 묶여 전개되는지 전체의 숲을 바라볼 때 깊게 이해된다.", axis: "사고", scoreMap: { plus: "총체", minus: "분석" } },
+            { id: 8, text: "정해진 학원 가이드라인보다 내 취약 영역을 직접 설정해서 스스로 채워 나갈 때 학업 성취감을 느낀다.", axis: "성격", scoreMap: { plus: "자기", minus: "사회" } },
+            { id: 9, text: "시험 첫 주에는 열정이 넘쳐 무리한 계획을 세우지만, 뒤로 갈수록 쉽게 지치고 마무리가 흐지부지된다.", axis: "결함", scoreMap: { focus: "용두사미" } },
+            { id: 10, text: "공부가 생각대로 풀리지 않으면 외적 환경 조건이나 컨디션 탓으로 생각하며 합리화하곤 한다.", axis: "결함", scoreMap: { focus: "합리화" } },
+            { id: 11, text: "시험 전 범위를 완전하게 통제하고 지배하지 못했다는 불안감이 밀려오면 시작하기도 전에 스트레스를 크게 받는다.", axis: "결함", scoreMap: { focus: "불안" } },
+            { id: 12, text: "분량이 너무 과하게 밀려 통제 범위를 벗어나면 모든 것을 내려놓고 학습 무기력에 빠지기 쉽다.", axis: "결함", scoreMap: { focus: "무기력" } },
+            { id: 13, text: "전체 흐름을 파악하는 것보다 공식의 완벽한 유도 과정이나 단어의 완벽한 세부 문법 규칙을 분해해 확인하는 게 명쾌하다.", axis: "사고", scoreMap: { plus: "분석", minus: "총체" } },
+            { id: 14, text: "평소 내 시험 성적이나 공부량을 의식할 때 타인(부모님, 선생님, 친구들)의 피드백과 시선을 깊게 고려한다.", axis: "성격", scoreMap: { plus: "사회", minus: "자기" } },
+            { id: 15, text: "매일 지정된 시간에 플래너를 점검하고 정해진 할 일을 완전히 끝마쳐야 이성적으로 안심이 된다.", axis: "조절", scoreMap: { plus: "이성", minus: "감성" } }
+        ];
+
+        const masterData = {
+            kant: { title: "철저한 계획의 군주, 칸트형", desc: "디테일을 명확히 파헤치는 분석형 사고와 감정에 치우치지 않는 이성적 조절력이 극대화된 타입입니다.", quote: "스케줄 루틴은 흔들리지 않습니다. 진도를 요일별 가용 블록에 배치하십시오." },
+            aristotle: { title: "맥락을 꿰뚫는 철인, 아리스토텔레스형", desc: "전체적인 지식의 맥락을 스스로 설정하는 총체형 사고와 주도적인 성향이 결합된 타입입니다.", quote: "핵심 구조를 먼저 정복하는 관통 공부법을 수립하고 스케줄러를 가동하세요." },
+            newton: { title: "고독하게 몰입하는 거장, 뉴턴형", desc: "치밀함을 추구하는 완벽주의 성향을 가졌으나 완벽하지 못할 때 스트레스를 받는 감성/불안 지향형입니다.", quote: "심리 부담을 완화하기 위해 금요일 자습 시간에 완충 마진을 선점하세요." },
+            davinci: { title: "호기심이 넘치는 천재, 다빈치형", desc: "직관적이고 방대한 영역을 조망하는 총체형이나 흥미에 따라 좌우되는 감성/용두사미 조합입니다.", quote: "미완료 누적 이월 시스템을 믿고 끝까지 페이스를 유지하십시오." }
+        };
+
+        window.state = {
+            currentUser: null,
+            surveyIndex: 0,
+            scores: { 사고: 0, 성격: 0, 조절: 0, 용두사미: 0, 합리화: 0, 불안: 0, 무기력: 0 },
+            masterType: 'kant',
+            weeksCount: 5,
+            currentWeek: 1,
+            subjects: [
+                { id: 'sub-1', name: '수학', color: 'sub-red', priority: 1 },
+                { id: 'sub-2', name: '영어', color: 'sub-orange', priority: 2 },
+                { id: 'sub-3', name: '국어', color: 'sub-blue', priority: 3 },
+                { id: 'sub-4', name: '과학', color: 'sub-green', priority: 4 }
+            ],
+            timeBudget: { mon: 4, tue: 4, wed: 4, thu: 4, fri: 3, sat: 8, sun: 6 },
+            repeatingTasks: [],
+            weeklyTodos: {}, 
+            schedules: {},
+            pendingTask: null,
+            activeSplitTodoId: null
+        };
+
+        window.showView = function(viewId) {
+            ['auth-view', 'survey-view', 'planner-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        window.loadUserData = function(username) {
+            state.currentUser = username;
+            const dataStr = localStorage.getItem(`planner_db_${username}`);
+            if (dataStr) {
+                const loaded = JSON.parse(dataStr);
+                state.scores = loaded.scores || state.scores;
+                state.masterType = loaded.masterType || state.masterType;
+                state.subjects = loaded.subjects || state.subjects;
+                state.timeBudget = loaded.timeBudget || state.timeBudget;
+                state.repeatingTasks = loaded.repeatingTasks || [];
+                state.weeklyTodos = loaded.weeklyTodos || {};
+                state.schedules = loaded.schedules || state.schedules;
+                state.weeksCount = loaded.weeksCount || state.weeksCount;
+                
+                Object.keys(state.timeBudget).forEach(d => {
+                    if (document.getElementById(`time-${d}`)) document.getElementById(`time-${d}`).value = state.timeBudget[d];
+                });
+                showView('planner-view');
+                initPlannerDOM();
+            } else {
+                showView('survey-view');
+                renderQuestion();
+            }
+        }
+
+        function saveAllDataToStorage() {
+            if (!state.currentUser) return;
+            localStorage.setItem(`planner_db_${state.currentUser}`, JSON.stringify({
+                scores: state.scores, masterType: state.masterType, subjects: state.subjects,
+                timeBudget: state.timeBudget, repeatingTasks: state.repeatingTasks, 
+                weeklyTodos: state.weeklyTodos, schedules: state.schedules, weeksCount: state.weeksCount
+            }));
+        }
+
+        function renderQuestion() {
+            if (state.surveyIndex >= surveyQuestions.length) {
+                finalizeDiagnostics();
+                return;
+            }
+            const q = surveyQuestions[state.surveyIndex];
+            document.getElementById('progress-text').innerText = `${state.surveyIndex + 1} / ${surveyQuestions.length}`;
+            document.getElementById('progress-bar').style.width = `${((state.surveyIndex + 1) / surveyQuestions.length) * 100}%`;
+            document.getElementById('question-text').innerText = `Q${q.id}. ${q.text}`;
+        }
+
+        window.submitAnswer = function(weight) {
+            const q = surveyQuestions[state.surveyIndex];
+            const factor = weight - 3;
+
+            if (q.axis === "사고") state.scores.사고 += (q.scoreMap.plus === "총체") ? factor : -factor;
+            else if (q.axis === "성격") state.scores.성격 += (q.scoreMap.plus === "자기") ? factor : -factor;
+            else if (q.axis === "조절") state.scores.조절 += (q.scoreMap.plus === "감성") ? factor : -factor;
+            else if (q.axis === "결함" && factor > 0) state.scores[q.scoreMap.focus] += factor;
+
+            state.surveyIndex++;
+            renderQuestion();
+        }
+
+        function finalizeDiagnostics() {
+            let type = 'kant';
+            if (state.scores.사고 >= 0 && state.scores.성격 >= 0) type = 'aristotle';
+            else if (state.scores.사고 < 0 && state.scores.조절 >= 0) type = 'newton';
+            else if (state.scores.사고 >= 0 && state.scores.조절 >= 0) type = 'davinci';
+
+            state.masterType = type;
+            saveAllDataToStorage();
+
+            const m = masterData[type];
+            document.getElementById('popup-master-title').innerText = `"${m.title}"`;
+            document.getElementById('popup-master-desc').innerText = m.desc;
+            document.getElementById('giant-popup').classList.remove('hidden');
+        }
+
+        window.closeGiantPopup = function() {
+            document.getElementById('giant-popup').classList.add('hidden');
+            showView('planner-view');
+            initPlannerDOM();
+        }
+
+        function initPlannerDOM() {
+            const m = masterData[state.masterType];
+            document.getElementById('display-name').innerText = state.currentUser.split('@')[0];
+            document.getElementById('user-badge').innerText = m.title;
+            document.getElementById('prescription-text').innerText = m.quote;
+            document.getElementById('exam-weeks').value = state.weeksCount;
+            updateWeeksDropdown();
+            renderSubjectSidebar();
+            renderRepeatingTasks();
+            renderWeekSchedule();
+        }
+
+        window.updateWeeksDropdown = function() {
+            const select = document.getElementById('current-week-select');
+            const maxWeeks = parseInt(document.getElementById('exam-weeks').value);
+            state.weeksCount = maxWeeks;
+            
+            let html = '';
+            for (let i = 1; i <= maxWeeks; i++) {
+                const dDayText = (maxWeeks - i === 0) ? "시험 주차" : `D-${maxWeeks - i}주차`;
+                html += `<option value="${i}">위크 ${i} (${dDayText})</option>`;
+            }
+            select.innerHTML = html;
+            if (state.currentWeek > maxWeeks) state.currentWeek = maxWeeks;
+            select.value = state.currentWeek;
+            saveAllDataToStorage();
+        }
+
+        function renderSubjectSidebar() {
+            state.subjects.sort((a, b) => a.priority - b.priority);
+            const container = document.getElementById('subject-list');
+            container.innerHTML = '';
+
+            const modalSub = document.getElementById('modal-subject');
+            const repeatSub = document.getElementById('repeat-task-subject');
+            let optionsHtml = state.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            if(modalSub) modalSub.innerHTML = optionsHtml;
+            if(repeatSub) repeatSub.innerHTML = optionsHtml;
+
+            state.subjects.forEach((sub, idx) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2 rounded-lg ${sub.color} text-xs font-semibold cursor-grab active:cursor-grabbing`;
+                div.draggable = true;
+                div.innerHTML = `<span>${idx + 1}. ${sub.name}</span><button onclick="deleteSubject('${sub.id}')" class="text-[10px] bg-black/20 hover:bg-black/40 rounded px-1 text-white">✕</button>`;
+                div.ondragstart = (e) => e.dataTransfer.setData('text/sub-index', idx);
+                div.ondragover = (e) => e.preventDefault();
+                div.ondrop = (e) => {
+                    e.preventDefault();
+                    const fromIdx = e.dataTransfer.getData('text/sub-index');
+                    if (fromIdx !== "") {
+                        const target = state.subjects.splice(fromIdx, 1)[0];
+                        state.subjects.splice(idx, 0, target);
+                        state.subjects.forEach((s, i) => s.priority = i + 1);
+                        renderSubjectSidebar();
+                        saveAllDataToStorage();
+                    }
+                };
+                container.appendChild(div);
+            });
+        }
+
+        window.addNewSubject = function() {
+            const input = document.getElementById('new-subject-name');
+            const name = input.value.trim();
+            if (!name) return;
+            const color = document.getElementById('new-subject-color').value;
+            state.subjects.push({ id: 'sub-' + Date.now(), name, color, priority: state.subjects.length + 1 });
+            input.value = '';
+            renderSubjectSidebar();
+            saveAllDataToStorage();
+        }
+
+        window.deleteSubject = function(id) {
+            state.subjects = state.subjects.filter(s => s.id !== id);
+            renderSubjectSidebar();
+            saveAllDataToStorage();
+        }
+
+        window.addRepeatingTask = function() {
+            const nameInput = document.getElementById('repeat-task-name');
+            const name = nameInput.value.trim();
+            if(!name) return alert('반복할 과제 명칭을 입력해 주세요.');
+
+            const subId = document.getElementById('repeat-task-subject').value;
+            const hours = parseFloat(document.getElementById('repeat-task-hours').value);
+            const day = document.getElementById('repeat-task-day').value;
+
+            if(!subId) return alert('과목을 먼저 생성해야 연결할 수 있습니다.');
+
+            const newTask = { id: 'rep-' + Date.now(), name, subId, hours, day };
+            state.repeatingTasks.push(newTask);
+            
+            nameInput.value = '';
+            saveAllDataToStorage();
+            renderRepeatingTasks();
+            renderWeekSchedule();
+        }
+
+        window.deleteRepeatingTask = function(id) {
+            state.repeatingTasks = state.repeatingTasks.filter(t => t.id !== id);
+            saveAllDataToStorage();
+            renderRepeatingTasks();
+            renderWeekSchedule();
+        }
+
+        function renderRepeatingTasks() {
+            const container = document.getElementById('repeating-tasks-list');
+            container.innerHTML = '';
+            const dayKr = {mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토', sun:'일'};
+
+            state.repeatingTasks.forEach(t => {
+                const sub = state.subjects.find(s => s.id === t.subId) || {name:'미지정'};
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between text-[11px] bg-charcoal border border-gray-600 p-1.5 rounded-lg";
+                div.innerHTML = `
+                    <span class="truncate max-w-[150px]"><b class="text-emerald-400">[${dayKr[t.day]}]</b> ${t.name} (${sub.name}/${t.hours}h)</span>
+                    <button onclick="deleteRepeatingTask('${t.id}')" class="text-red-400 hover:text-red-500 px-1">✕</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // [알고리즘 업그레이드] 입력 내용을 날리지 않고 주간 플래너 가용 자습시간에 맞추어 자동 분할 배정하는 통합 스케줄러 엔진
+        window.addWeeklyTodoBulkLines = function() {
+            const textarea = document.getElementById('weekly-todo-textarea');
+            const rawBigText = textarea.value.trim();
+            if(!rawBigText) return alert('줄글 내용을 입력창에 기입해 주세요.');
+
+            const textLines = rawBigText.split('\n');
+            const curW = state.currentWeek;
+            if(!state.weeklyTodos[curW]) state.weeklyTodos[curW] = [];
+
+            const lineRegex = /^([^\-]+)\-([^\(]+)\(([\d\.]+)\)$/;
+            const days = ['mon','tue','wed','thu','fri','sat','sun'];
+
+            // 1단계: 유효한 미션들 먼저 임시 배열에 파싱 로드
+            let parsedMissions = [];
+            let totalRequestedHours = 0;
+
+            textLines.forEach(line => {
+                const cleanLine = line.trim();
+                if(!cleanLine) return;
+
+                const match = cleanLine.match(lineRegex);
+                if(match) {
+                    const subjectName = match[1].trim();
+                    const todoContent = match[2].trim();
+                    const targetHours = parseFloat(match[3]);
+
+                    if(!isNaN(targetHours) && targetHours > 0) {
+                        parsedMissions.push({ subjectName, todoContent, totalHours: targetHours });
+                        totalRequestedHours += targetHours;
+                    }
+                }
+            });
+
+            if(parsedMissions.length === 0) {
+                return alert("파싱할 수 있는 유효한 과제가 없습니다. 형식을 확인하세요!\n(예시: 수학-쎈C단계(3))");
+            }
+
+            // 2단계: 일주일치 전체 순수 남은 자습 총량 풀($Pool$) 사전 계산
+            let totalAvailablePool = 0;
+            days.forEach(d => {
+                const currentTotal = (state.schedules[`${curW}-${d}`] || []).reduce((acc, t) => acc + parseFloat(t.hours || 0), 0);
+                const repeatTotal = state.repeatingTasks.filter(t => t.day === d).reduce((acc, t) => acc + parseFloat(t.hours), 0);
+                const remain = state.timeBudget[d] - (currentTotal + repeatTotal);
+                if(remain > 0) totalAvailablePool += remain;
+            });
+
+            // 예외 가드: 소요 요량이 가용 풀보다 압도적으로 많으면 차단 제안
+            if(totalRequestedHours > totalAvailablePool + 7) { 
+                return alert(`과해과해!! 🚨 이번 주 남은 자습 가용 시간 총량에 비해 입력하신 과제 요량(${totalRequestedHours}h)이 너무 많습니다.\n요일별 자습 시간을 늘리거나 분량을 줄여서 다시 시도해 주세요.`);
+            }
+
+            // 3단계: 파싱 데이터를 바탕으로 자습 가용 시간을 실시간 고려하여 요일별 분할 배정 매칭 시작 ($Greedy$ $Distribution$)
+            parsedMissions.forEach(mission => {
+                let hoursLeftToAllocate = mission.totalHours;
+                let piecesAllocated = [];
+                const subRef = state.subjects.find(s => s.name === mission.subjectName) || { id: 'sub-1' };
+
+                // 허용 시간이 다 소진될 때까지 요일 타임라인 순회 주입
+                let safetyLoopCounter = 0;
+                while(hoursLeftToAllocate > 0 && safetyLoopCounter < 20) {
+                    safetyLoopCounter++;
+                    
+                    for(let i=0; i<days.length; i++) {
+                        if(hoursLeftToAllocate <= 0) break;
+                        const day = days[i];
+                        const dayKey = `${curW}-${day}`;
+                        if (!state.schedules[dayKey]) state.schedules[dayKey] = [];
+
+                        // 현재 요일 실시간 남은 공간 계산
+                        const cTotal = state.schedules[dayKey].reduce((acc, t) => acc + parseFloat(t.hours || 0), 0);
+                        const rTotal = state.repeatingTasks.filter(t => t.day === day).reduce((acc, t) => acc + parseFloat(t.hours), 0);
+                        const dayRemainBudget = state.timeBudget[day] - (cTotal + rTotal);
+
+                        if(dayRemainBudget > 0.5) {
+                            // 줄글 과제를 하루에 최대 1.5h 또는 남은 한도 조각 중 작은 크기로 슬라이싱(Slicing) 분할
+                            let sliceChunk = Math.min(hoursLeftToAllocate, dayRemainBudget, 1.5);
+                            if(sliceChunk < 0.5) continue; 
+
+                            const newPieceTaskId = 'task-split-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+                            const pName = `${mission.todoContent} (${sliceChunk}h 조각)`;
+
+                            // A. 오리지널 주간 미션 관리 객체에 분할 로그 주입
+                            piecesAllocated.push({ name: pName, hours: sliceChunk, day: day, taskId: newPieceTaskId });
+
+                            // B. 실제 해당 요일의 달력 캘린더 타임라인 스케줄러에 블록 생성 주입 완료
+                            state.schedules[dayKey].push({
+                                id: newPieceTaskId,
+                                name: `[자동배정] ${mission.todoContent}`,
+                                subId: subRef.id,
+                                hours: sliceChunk,
+                                completed: false,
+                                reviewTrigger: false
+                            });
+
+                            hoursLeftToAllocate -= sliceChunk;
+                        }
+                    }
+                }
+
+                // 주간 대시보드 저장 데이터 어셈블리 바인딩
+                state.weeklyTodos[curW].push({
+                    id: 'todo-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                    subjectName: mission.subjectName,
+                    todoContent: mission.todoContent,
+                    totalHours: mission.totalHours,
+                    pieces: piecesAllocated
+                });
+            });
+
+            textarea.value = '';
+            saveAllDataToStorage();
+            renderWeeklyTodos();
+            renderWeekSchedule();
+            alert(`줄글 내용 분석 완료!\n\n총 ${parsedMissions.length}개의 주간 과제가 요일별 자습 가용 시간에 맞춰 자동으로 분할 배정되어 플래너에 추가되었습니다! 🎉`);
+        }
+
+        window.deleteWeeklyTodo = function(id, e) {
+            if(e) e.stopPropagation();
+            const curW = state.currentWeek;
+            
+            const targetTodo = state.weeklyTodos[curW].find(t => t.id === id);
+            if(targetTodo && targetTodo.pieces) {
+                targetTodo.pieces.forEach(p => {
+                    const dayKey = `${curW}-${p.day}`;
+                    if(state.schedules[dayKey]) {
+                        state.schedules[dayKey] = state.schedules[dayKey].filter(t => t.id !== p.taskId);
+                    }
+                });
+            }
+
+            state.weeklyTodos[curW] = state.weeklyTodos[curW].filter(t => t.id !== id);
+            saveAllDataToStorage();
+            renderWeeklyTodos();
+            renderWeekSchedule();
+        }
+
+        function renderWeeklyTodos() {
+            const container = document.getElementById('weekly-todo-list');
+            container.innerHTML = '';
+            const curW = state.currentWeek;
+
+            if(!state.weeklyTodos[curW]) state.weeklyTodos[curW] = [];
+
+            state.weeklyTodos[curW].forEach(t => {
+                const subRef = state.subjects.find(s => s.name === t.subjectName) || { color: 'bg-gray-600' };
+                const safePieces = t.pieces || [];
+                const distributedHours = safePieces.reduce((acc, p) => acc + p.hours, 0);
+                const isFinished = distributedHours >= t.totalHours;
+
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl border border-gray-700 ${subRef.color} shadow-lg cursor-pointer hover:scale-[1.01] transition relative group flex flex-col justify-between min-h-[64px]`;
+                div.onclick = () => openSplitModal(t.id);
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="font-bold text-xs bg-black/30 px-1.5 py-0.5 rounded">${t.subjectName} (${t.totalHours}h)</span>
+                        <button onclick="deleteWeeklyTodo('${t.id}', event)" class="text-white bg-black/20 hover:bg-black/40 rounded px-1 text-[11px]">✕</button>
+                    </div>
+                    <div class="text-sm font-semibold mt-1 truncate pr-6">${t.todoContent}</div>
+                    <div class="text-[10px] mt-1 text-white/80 font-mono">분할 진행도: ${distributedHours}/${t.totalHours}h ${isFinished ? '✅ 완료' : '⏳ 분할중'}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.openSplitModal = function(todoId) {
+            const curW = state.currentWeek;
+            const todo = state.weeklyTodos[curW].find(t => t.id === todoId);
+            if(!todo) return;
+
+            if(!todo.pieces) todo.pieces = [];
+
+            state.activeSplitTodoId = todoId;
+            document.getElementById('split-target-info').innerText = `대상: [${todo.subjectName}] ${todo.todoContent}`;
+            document.getElementById('split-task-name').value = todo.todoContent + " - 조각";
+
+            updateSplitModalCalculations();
+            document.getElementById('split-modal').classList.remove('hidden');
+        }
+
+        window.closeSplitModal = function() {
+            document.getElementById('split-modal').classList.add('hidden');
+            state.activeSplitTodoId = null;
+        }
+
+        function updateSplitModalCalculations() {
+            const curW = state.currentWeek;
+            const todo = state.weeklyTodos[curW].find(t => t.id === state.activeSplitTodoId);
+            if(!todo) return;
+
+            const safePieces = todo.pieces || [];
+            const distributedHours = safePieces.reduce((acc, p) => acc + p.hours, 0);
+            const remain = todo.totalHours - distributedHours;
+
+            document.getElementById('split-total-h').innerText = todo.totalHours;
+            document.getElementById('split-remain-h').innerText = remain.toFixed(1);
+
+            const listContainer = document.getElementById('split-pieces-list');
+            listContainer.innerHTML = '';
+            const dayKr = {mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토', sun:'일'};
+
+            safePieces.forEach((p, idx) => {
+                const item = document.createElement('div');
+                item.className = "flex justify-between items-center bg-charcoal px-3 py-1 rounded text-xs";
+                item.innerHTML = `
+                    <span><b>[${dayKr[p.day]}요일]</b> ${p.name} (${p.hours}h)</span>
+                    <button onclick="deleteSplitPiece(${idx})" class="text-red-400 hover:text-red-500 font-bold">✕</button>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        window.executeSplitPiece = function() {
+            const curW = state.currentWeek;
+            const todo = state.weeklyTodos[curW].find(t => t.id === state.activeSplitTodoId);
+            if(!todo) return;
+
+            if(!todo.pieces) todo.pieces = [];
+
+            const pName = document.getElementById('split-task-name').value.trim();
+            const pHours = parseFloat(document.getElementById('split-task-hours').value);
+            const pDay = document.getElementById('split-task-day').value;
+
+            if(!pName) return alert('분할 과제 명칭을 적어주세요.');
+
+            const distributedHours = todo.pieces.reduce((acc, p) => acc + p.hours, 0);
+            if(distributedHours + pHours > todo.totalHours) {
+                return alert('설정하신 분할 시간이 남은 전체 과제 허용 시간을 초과합니다!');
+            }
+
+            const dayKey = `${curW}-${pDay}`;
+            if (!state.schedules[dayKey]) state.schedules[dayKey] = [];
+            
+            const currentTotal = state.schedules[dayKey].reduce((acc, t) => acc + parseFloat(t.hours || 0), 0);
+            const repeatTotal = state.repeatingTasks.filter(t => t.day === pDay).reduce((acc, t) => acc + parseFloat(t.hours), 0);
+            
+            const subRef = state.subjects.find(s => s.name === todo.subjectName) || { id: 'sub-1' };
+            const newPieceTaskId = 'task-split-' + Date.now();
+
+            const newScheduleObj = {
+                id: newPieceTaskId,
+                name: `[주간분할] ${pName}`,
+                subId: subRef.id,
+                hours: pHours,
+                completed: false,
+                reviewTrigger: false
+            };
+
+            if (currentTotal + repeatTotal + pHours > state.timeBudget[pDay]) {
+                state.pendingTask = { 
+                    isSplitOperation: true,
+                    todoId: todo.id,
+                    pieceData: { name: pName, hours: pHours, day: pDay, taskId: newPieceTaskId },
+                    targetDay: pDay, 
+                    task: newScheduleObj 
+                };
+                document.getElementById('overload-popup').classList.remove('hidden');
+            } else {
+                todo.pieces.push({ name: pName, hours: pHours, day: pDay, taskId: newPieceTaskId });
+                state.schedules[dayKey].push(newScheduleObj);
+                completeSplitProcess();
+            }
+        }
+
+        function completeSplitProcess() {
+            saveAllDataToStorage();
+            updateSplitModalCalculations();
+            renderWeeklyTodos();
+            renderWeekSchedule();
+        }
+
+        window.deleteSplitPiece = function(idx) {
+            const curW = state.currentWeek;
+            const todo = state.weeklyTodos[curW].find(t => t.id === state.activeSplitTodoId);
+            if(!todo) return;
+
+            const targetPiece = todo.pieces[idx];
+            const dayKey = `${curW}-${targetPiece.day}`;
+            
+            if(state.schedules[dayKey]) {
+                state.schedules[dayKey] = state.schedules[dayKey].filter(t => t.id !== targetPiece.taskId);
+            }
+
+            todo.pieces.splice(idx, 1);
+            completeSplitProcess();
+        }
+
+        window.saveTimeBudget = function() {
+            ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+                state.timeBudget[d] = parseFloat(document.getElementById(`time-${d}`).value) || 0;
+            });
+            saveAllDataToStorage();
+            renderWeekSchedule();
+        }
+
+        window.generateAIRecommendation = function() {
+            if (state.subjects.length === 0) return alert('최소 한 개 이상의 과목을 등록해 주세요.');
+            const curW = state.currentWeek;
+            
+            ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => state.schedules[`${curW}-${d}`] = []);
+            const sortedSubs = [...state.subjects].sort((a,b) => a.priority - b.priority);
+            
+            if (state.masterType === 'kant' || state.masterType === 'newton') {
+                let subPtr = 0;
+                ['mon','tue','wed','thu','fri'].forEach(d => {
+                    const s1 = sortedSubs[subPtr % sortedSubs.length];
+                    const s2 = sortedSubs[(subPtr + 1) % sortedSubs.length];
+                    state.schedules[`${curW}-${d}`] = [
+                        { id: 'task-ai-1-'+d, name: `${s1.name} 기출 유형 심층 분석`, subId: s1.id, hours: 2.0, completed: false, reviewTrigger: false },
+                        { id: 'task-ai-2-'+d, name: `${s2.name} 오답 고난도 교정 정리`, subId: s2.id, hours: 1.5, completed: false, reviewTrigger: false }
+                    ];
+                    subPtr += 2;
+                });
+            } else {
+                const primarySub = sortedSubs[0];
+                const secondarySub = sortedSubs[1] || sortedSubs[0];
+                ['mon','wed','fri'].forEach(d => {
+                    state.schedules[`${curW}-${d}`] = [{ id: 'task-ai-h1-'+d, name: `${primarySub.name} 개념 단원 매크로 정독 마스터`, subId: primarySub.id, hours: 2.5, completed: false, reviewTrigger: false }];
+                });
+                ['tue','thu'].forEach(d => {
+                    state.schedules[`${curW}-${d}`] = [{ id: 'task-ai-h2-'+d, name: `${secondarySub.name} 핵심 서술형 예상 트렌드 탐색`, subId: secondarySub.id, hours: 2.0, completed: false, reviewTrigger: false }];
+                });
+            }
+            saveAllDataToStorage();
+            renderWeekSchedule();
+        }
+
+        window.renderWeekSchedule = function() {
+            const selectEl = document.getElementById('current-week-select');
+            if(!selectEl || !selectEl.value) return;
+            const curW = parseInt(selectEl.value);
+            state.currentWeek = curW;
+            document.getElementById('canvas-week-title').innerText = (state.weeksCount - curW === 0) ? "시험 주차" : `D-${state.weeksCount - curW}주차`;
+
+            renderWeeklyTodos();
+
+            ['mon','tue','wed','thu','fri','sat','sun'].forEach(day => {
+                const dayKey = `${curW}-${day}`;
+                if (!state.schedules[dayKey]) state.schedules[dayKey] = [];
+                
+                const container = document.getElementById(`tasks-${day}`);
+                container.innerHTML = '';
+                
+                let accumulatedHours = 0;
+
+                const todaysRepeatingTasks = state.repeatingTasks.filter(t => t.day === day);
+                todaysRepeatingTasks.forEach(rt => {
+                    accumulatedHours += parseFloat(rt.hours);
+                    const subRef = state.subjects.find(s => s.id === rt.subId) || { name: '미지정', color: 'bg-gray-600' };
+                    
+                    const el = document.createElement('div');
+                    el.className = `${subRef.color} p-2 rounded-lg text-xs font-medium shadow opacity-85 relative border-2 border-emerald-500/60 flex flex-col gap-0.5`;
+                    el.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] bg-emerald-700/80 text-white px-1 rounded font-bold">🔁 주간 고정 (${rt.hours}h)</span>
+                        </div>
+                        <div class="text-white font-normal">${rt.name}</div>
+                    `;
+                    container.appendChild(el);
+                });
+
+                state.schedules[dayKey].forEach(task => {
+                    accumulatedHours += parseFloat(task.hours) || 2.0;
+                    const subRef = state.subjects.find(s => s.id === task.subId) || { name: '미지정', color: 'bg-gray-600' };
+                    
+                    const el = document.createElement('div');
+                    el.className = `${subRef.color} p-2 rounded-lg text-xs font-medium shadow relative group cursor-grab active:cursor-grabbing flex flex-col gap-0.5`;
+                    el.draggable = true;
+                    el.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] bg-black/20 px-1 rounded truncate max-w-[50px]">${subRef.name} (${task.hours}h)</span>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                <button onclick="editTaskInline('${day}', '${task.id}')" class="text-white hover:text-orange-200">✏️</button>
+                                <button onclick="deleteTaskItem('${day}', '${task.id}')" class="text-white hover:text-red-300">✕</button>
+                            </div>
+                        </div>
+                        <div class="text-white font-normal line-clamp-2" onblur="updateTaskNameInline(this, '${day}', '${task.id}')" contenteditable="true">${task.name}</div>
+                        ${task.reviewTrigger ? '<span class="text-[9px] text-[#024428] font-bold">🔁 복습 누적 예약됨</span>' : ''}
+                    `;
+                    el.ondragstart = (e) => {
+                        e.dataTransfer.setData('text/source-day', day);
+                        e.dataTransfer.setData('text/task-id', task.id);
+                    };
+                    container.appendChild(el);
+                });
+
+                const maxBudget = state.timeBudget[day];
+                const budgetLabel = document.getElementById(`budget-${day}`);
+                budgetLabel.innerText = `${accumulatedHours}/${maxBudget}h`;
+                if(accumulatedHours > maxBudget) {
+                    budgetLabel.className = "text-[10px] text-white bg-red-500 px-1.5 py-0.5 rounded font-bold animate-pulse";
+                } else {
+                    budgetLabel.className = "text-[10px] text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded";
+                }
+            });
+        }
+
+        window.updateTaskNameInline = function(element, day, taskId) {
+            const curW = state.currentWeek;
+            const task = state.schedules[`${curW}-${day}`].find(t => t.id === taskId);
+            if (task) { task.name = element.innerText.trim(); saveAllDataToStorage(); }
+        }
+
+        window.allowDrop = function(e) { e.preventDefault(); }
+        
+        window.drop = function(e, targetDay) {
+            e.preventDefault();
+            const sourceDay = e.dataTransfer.getData('text/source-day');
+            const taskId = e.dataTransfer.getData('text/task-id');
+            if (!sourceDay || !taskId) return;
+
+            const curW = state.currentWeek;
+            const sourceList = state.schedules[`${curW}-${sourceDay}`] || [];
+            const taskIdx = sourceList.findIndex(t => t.id === taskId);
+            if (taskIdx === -1) return;
+
+            const targetTask = sourceList[taskIdx];
+            const targetList = state.schedules[`${curW}-${targetDay}`] || [];
+            
+            let currentTargetHours = targetList.reduce((acc, t) => acc + parseFloat(t.hours || 0), 0);
+            const targetRepeatHours = state.repeatingTasks.filter(t => t.day === targetDay).reduce((acc, t) => acc + parseFloat(t.hours), 0);
+            
+            if (sourceDay !== targetDay && (currentTargetHours + targetRepeatHours + parseFloat(targetTask.hours) > state.timeBudget[targetDay])) {
+                state.pendingTask = { isSplitOperation: false, sourceDay, targetDay, taskIdx, task: targetTask };
+                document.getElementById('overload-popup').classList.remove('hidden');
+            } else {
+                executeMoveTask(sourceDay, targetDay, taskIdx, targetTask);
+            }
+        }
+
+        function executeMoveTask(sourceDay, targetDay, taskIdx, task) {
+            const curW = state.currentWeek;
+            state.schedules[`${curW}-${sourceDay}`].splice(taskIdx, 1);
+            if (!state.schedules[`${curW}-${targetDay}`]) state.schedules[`${curW}-${targetDay}`] = [];
+            state.schedules[`${curW}-${targetDay}`].push(task);
+            saveAllDataToStorage();
+            renderWeekSchedule();
+        }
+
+        window.confirmOverload = function(shouldForce) {
+            document.getElementById('overload-popup').classList.add('hidden');
+            if (!state.pendingTask) return;
+            
+            if (shouldForce) {
+                if(state.pendingTask.isSplitOperation) {
+                    const { todoId, pieceData, targetDay, task } = state.pendingTask;
+                    const curW = state.currentWeek;
+                    const todo = state.weeklyTodos[curW].find(t => t.id === todoId);
+                    if(todo) {
+                        if(!todo.pieces) todo.pieces = [];
+                        todo.pieces.push(pieceData);
+                        state.schedules[`${curW}-${targetDay}`].push(task);
+                        completeSplitProcess();
+                    }
+                } else {
+                    const { sourceDay, targetDay, taskIdx, task } = state.pendingTask;
+                    executeMoveTask(sourceDay, targetDay, taskIdx, task);
+                }
+            }
+            state.pendingTask = null;
+        }
+
+        let activeTargetDay = 'mon';
+        let activeTargetTaskId = null;
+
+        window.openAddTaskModal = function(day) {
+            if (state.subjects.length === 0) return alert('과목을 먼저 사이드바에서 등록해 주세요.');
+            activeTargetDay = day; activeTargetTaskId = null;
+            document.getElementById('modal-title').innerText = "새로운 학습 태스크 할당";
+            document.getElementById('modal-task-name').value = '';
+            document.getElementById('modal-task-hours').value = "2.0";
+            document.getElementById('modal-review-trigger').checked = false;
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        window.editTaskInline = function(day, taskId) {
+            activeTargetDay = day; activeTargetTaskId = taskId;
+            const curW = state.currentWeek;
+            const task = state.schedules[`${curW}-${day}`].find(t => t.id === taskId);
+            if (!task) return;
+
+            document.getElementById('modal-title').innerText = "태스크 속성 및 예상 시간 편집";
+            document.getElementById('modal-task-name').value = task.name;
+            document.getElementById('modal-task-hours').value = task.hours || "2.0";
+            document.getElementById('modal-review-trigger').checked = task.reviewTrigger || false;
+            document.getElementById('modal-subject').value = task.subId;
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        window.closeTaskModal = function() { document.getElementById('task-modal').classList.add('hidden'); }
+
+        window.saveTaskData = function() {
+            const name = document.getElementById('modal-task-name').value.trim();
+            if (!name) return alert('내용을 입력하세요.');
+            const subId = document.getElementById('modal-subject').value;
+            const hours = parseFloat(document.getElementById('modal-task-hours').value) || 2.0;
+            const reviewTrigger = document.getElementById('modal-review-trigger').checked;
+            
+            const curW = state.currentWeek;
+            const dayKey = `${curW}-${activeTargetDay}`;
+
+            if (activeTargetTaskId) {
+                const task = state.schedules[dayKey].find(t => t.id === activeTargetTaskId);
+                if (task) { task.name = name; task.subId = subId; task.hours = hours; task.reviewTrigger = reviewTrigger; }
+            } else {
+                const currentTotal = state.schedules[dayKey].reduce((acc, t) => acc + parseFloat(t.hours || 0), 0);
+                const repeatTotal = state.repeatingTasks.filter(t => t.day === activeTargetDay).reduce((acc, t) => acc + parseFloat(t.hours), 0);
+                const newTaskObj = { id: 'task-' + Date.now(), name, subId, hours, completed: false, reviewTrigger };
+
+                if (currentTotal + repeatTotal + hours > state.timeBudget[activeTargetDay]) {
+                    state.pendingTask = { isSplitOperation: false, sourceDay: activeTargetDay, targetDay: activeTargetDay, taskIdx: -1, task: newTaskObj };
+                    document.getElementById('task-modal').classList.add('hidden');
+                    document.getElementById('overload-popup').classList.remove('hidden');
+                    return;
+                } else {
+                    state.schedules[dayKey].push(newTaskObj);
+                }
+            }
+
+            if (reviewTrigger && curW < state.weeksCount) {
+                const targetFutureWeekKey = `${curW + 1}-${activeTargetDay}`;
+                if (!state.schedules[targetFutureWeekKey]) state.schedules[targetFutureWeekKey] = [];
+                state.schedules[targetFutureWeekKey].push({ id: 'task-rev-' + Date.now(), name: `[누적 복습] ${name}`, subId, hours, completed: false, reviewTrigger: false });
+            }
+
+            document.getElementById('task-modal').classList.add('hidden');
+            saveAllDataToStorage();
+            renderWeekSchedule();
+        }
+
+        window.deleteTaskItem = function(day, taskId) {
+            const curW = state.currentWeek;
+            
+            if(taskId.includes('task-split-')) {
+                if(state.weeklyTodos[curW]) {
+                    state.weeklyTodos[curW].forEach(todo => {
+                        if(todo.pieces) {
+                            todo.pieces = todo.pieces.filter(p => p.taskId !== taskId);
+                        }
+                    });
+                }
+            }
+
+            state.schedules[`${curW}-${day}`] = state.schedules[`${curW}-${day}`].filter(t => t.id !== taskId);
+            saveAllDataToStorage();
+            renderWeekSchedule();
+        }
+
+        window.exportToPDF = function() {
+            const element = document.getElementById('pdf-canvas');
+            const opt = {
+                margin: 10,
+                filename: `시험플래너_${state.currentUser.split('@')[0]}_Week${state.currentWeek}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, backgroundColor: '#1F222E', useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+</html>
